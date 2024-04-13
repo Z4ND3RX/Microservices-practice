@@ -1,9 +1,6 @@
 package co.edu.eam.biblioteca.service;
 
-import co.edu.eam.biblioteca.dto.ClienteGetDTO;
-import co.edu.eam.biblioteca.dto.PrestamoPostDTO;
-import co.edu.eam.biblioteca.dto.PrestamoQueryDTO;
-import co.edu.eam.biblioteca.dto.Respuesta;
+import co.edu.eam.biblioteca.dto.*;
 import co.edu.eam.biblioteca.model.Prestamo;
 import co.edu.eam.biblioteca.repo.PrestamoRepo;
 import co.edu.eam.biblioteca.service.excepciones.PrestamoNoEncontradoException;
@@ -11,7 +8,11 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -97,52 +98,71 @@ public class PrestamoServicio {
 
             for(String isbn: isbns) {
 
-                Respuesta<Boolean> respuesta = restTemplate.exchange(
-                        "http://localhost:9092/api/libro/" + isbn,
+                ResponseEntity<Respuesta<Libro>> responseEntity = restTemplate.exchange(
+                        "http://gateway-service:9999/api/libro/" + isbn,
                         HttpMethod.GET,
                         null,
-                        new ParameterizedTypeReference<Respuesta<Boolean>>() {} ).getBody();
+                        new ParameterizedTypeReference<Respuesta<Libro>>() {});
 
-                if(!respuesta.getDato()){
-                    noEncontrados.append(isbn).append(" ");
+                if(responseEntity.getStatusCode() == HttpStatus.OK){
+                    Libro libro = responseEntity.getBody().getDato();
+                    if(libro == null || !libro.getIsbn().equals(isbn)){
+                        noEncontrados.append(isbn).append(" ");
+                    }
                 }
             }
 
+        }catch (HttpClientErrorException e){
+            // Manejar errores específicos del cliente HTTP
+            throw new RuntimeException("Error en la solicitud: " + e.getMessage());
+        }catch (HttpServerErrorException e){
+            // Manejar errores del servidor
+            throw new RuntimeException("Error en el servidor: " + e.getMessage());
         }catch (Exception e){
+            // Manejar cualquier otra excepción
             e.printStackTrace();
             throw new RuntimeException("Hubo un error recuperando la información del libro");
         }
 
-
         if(noEncontrados.length() > 0){
             throw new RuntimeException("Estos isbn no existen: "+noEncontrados);
         }
-
     }
+
+
 
     private void validarCodigoCliente(String codigoCliente){
 
-        boolean encontrado;
+        ResponseEntity<Respuesta<Cliente>> responseEntity;
 
         try {
 
-            Respuesta<Boolean> respuesta = restTemplate.exchange(
-                    "http://localhost:9094/api/cliente/" + codigoCliente,
+            responseEntity = restTemplate.exchange(
+                    "http://gateway-service:9999/api/cliente/" + codigoCliente,
                     HttpMethod.GET,
                     null,
-                    new ParameterizedTypeReference<Respuesta<Boolean>>() {}).getBody();
+                    new ParameterizedTypeReference<Respuesta<Cliente>>() {});
 
-            encontrado = respuesta.getDato();
+            if(responseEntity.getStatusCode() == HttpStatus.OK){
+                Cliente cliente = responseEntity.getBody().getDato();
+                if(cliente == null || cliente.getCodigo() == null){
+                    throw new RuntimeException("El código " + codigoCliente + " no pertenece a ningún usuario");
+                }
+            }
 
+        }catch (HttpClientErrorException e){
+            // Manejar errores específicos del cliente HTTP
+            throw new RuntimeException("Error en la solicitud: " + e.getMessage());
+        }catch (HttpServerErrorException e){
+            // Manejar errores del servidor
+            throw new RuntimeException("Error en el servidor: " + e.getMessage());
         }catch (Exception e){
+            // Manejar cualquier otra excepción
             e.printStackTrace();
             throw new RuntimeException("Hubo un error recuperando la información del cliente");
         }
-
-        if(!encontrado){
-            throw new RuntimeException("El código "+codigoCliente+" no pertenece a ningún usuario");
-        }
-
     }
+
+
 
 }

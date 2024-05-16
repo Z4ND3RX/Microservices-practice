@@ -105,7 +105,7 @@ services:
 
   gateway-service:
     image: bib_gateway
-    build: ./gateway-service
+    build: ./gateway
     restart: always
     depends_on:
       - eureka-server

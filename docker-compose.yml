@@ -88,6 +88,24 @@ services:
       spring.datasource.password: root1234
       eureka.client.service-url.defaultZone: http://eureka-server:8761/eureka
 
+  autenticacion:
+    image: bib_autenticacion
+    build: ./autenticacion
+    restart: always
+    depends_on:
+      - eureka-server
+      - keycloak
+      - gateway
+    ports:
+      - "9092:9092"
+    environment:
+      eureka.client.service-url.defaultZone: http://eureka-server:8761/eureka
+      spring.security.oauth2.resourceserver.jwt.issuer-uri: http://keycloak:9090/realms/CHICLE
+      spring.security.oauth2.resourceserver.jwt.jwk-set-uri: http://keycloak:9090/realms/CHICLE/protocol/openid-connect/certs
+      keycloack.admin-url: http://keycloak:9090/admin/realms/tutorial-api
+    links:
+      - eureka-server
+
 
   prestamos:
     image: bib_prestamos

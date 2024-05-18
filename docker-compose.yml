@@ -5,6 +5,7 @@ volumes:
   mysql_db_1:
   mysql_db_2:
   mongo_db:
+  keycloak_data:
 
 
 services:
@@ -109,7 +110,21 @@ services:
     restart: always
     depends_on:
       - eureka-server
+      - keycloak
     ports:
       - "9999:9999"
     environment:
       eureka.client.service-url.defaultZone: http://eureka-server:8761/eureka
+      spring.security.oauth2.resourceserver.jwt.issuer-uri: http://keycloak:9090/realms/CHICLE
+      spring.security.oauth2.resourceserver.jwt.jwk-set-uri: http://keycloak:9090/realms/CHICLE/protocol/openid-connect/certs
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.0.2
+    ports:
+      - "9090:9090"
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    volumes:
+      - keycloak_data:/opt/keycloak/data/
+    command: [ "start-dev", "--http-port=9090" ]
